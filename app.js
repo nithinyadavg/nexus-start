@@ -474,8 +474,8 @@
     openSheet = null;
     if (returnFocus && returnFocus.focus) returnFocus.focus({preventScroll: true});
   }
-  ['suite', 'menu'].forEach(function (id) {
-    $(id).addEventListener('click', function (e) { if (e.target === $(id)) closeSheet(); });
+  ['suite', 'menu', 'gsheet'].forEach(function (id) {
+    $(id).addEventListener('click', function (e) { if (e.target === $(id)) { closeSheet(); if (id === 'gsheet') $('gbody').innerHTML = ''; } });
   });
 
   // MARK: - Search
@@ -545,6 +545,7 @@
     if (!b) return;
     var act = b.getAttribute('data-act');
     if (act === 'setup') { closeSheet(); openSetup(1); }
+    else if (act === 'glucose') { closeSheet(); openGlucose(); }
     else if (act === 'export') {
       var blob = new Blob([JSON.stringify({nexus: 1, config: cfg}, null, 2)], {type: 'application/json'});
       var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'nexus-setup.json';
@@ -554,7 +555,7 @@
     else if (act === 'usage') { store('usage', {}); render(); toast('“Most used” cleared'); }
     else if (act === 'reset') {
       if (b.getAttribute('data-sure')) {
-        ['config', 'usage', 'last', 'place', 'weather'].forEach(function (k) { try { localStorage.removeItem('nexus.' + k); } catch (x) {} });
+        ['config', 'usage', 'last', 'place', 'weather', 'glucose'].forEach(function (k) { try { localStorage.removeItem('nexus.' + k); } catch (x) {} });
         location.reload();
       } else { b.setAttribute('data-sure', '1'); b.textContent = 'Sure? Press again to wipe this browser’s setup'; }
     }
@@ -581,6 +582,234 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { el.classList.remove('show'); }, 2600);
   }
+  // MARK: - Glucose (optional): Dexcom Share or Nightscout, read straight from this browser
+  //
+  // Dexcom: the same Share feed the Dexcom Follow app reads (Share must be on, with at least one follower).
+  // Nightscout: any CGM that feeds a Nightscout site, which is how FreeStyle Libre works here: Abbott's
+  // LibreLinkUp servers refuse requests from web pages, so Libre goes Libre → Nightscout → Nexus.
+  // The sign-in stays in this browser (localStorage, key nexus.glucose), is never in a backup, and is
+  // sent only to Dexcom or to your own Nightscout. A glance, not a medical device.
+
+  var DEX = {
+    ous: {base: 'https://shareous1.dexcom.com/ShareWebServices/Services/', app: 'd89443d2-327c-4a6f-89e5-496bbb0317db', label: 'Outside the US'},
+    us: {base: 'https://share2.dexcom.com/ShareWebServices/Services/', app: 'd89443d2-327c-4a6f-89e5-496bbb0317db', label: 'United States'},
+    jp: {base: 'https://share.dexcom.jp/ShareWebServices/Services/', app: 'd8665ade-9673-4e27-9ff6-92db4ce13d13', label: 'Japan'}
+  };
+  var ARROWS = {DoubleUp: '⇈', SingleUp: '↑', FortyFiveUp: '↗', Flat: '→', FortyFiveDown: '↘', SingleDown: '↓', DoubleDown: '⇊'};
+  var TREND_N = ['', 'DoubleUp', 'SingleUp', 'FortyFiveUp', 'Flat', 'FortyFiveDown', 'SingleDown', 'DoubleDown'];
+  var NONE = '00000000-0000-0000-0000-000000000000';
+  var glu = {session: null, timer: null, last: null, preview: false};
+
+  function gconf() { return stored('glucose'); }
+
+  function request(method, url, body, done) {
+    var x = new XMLHttpRequest(), finished = false;
+    x.open(method, url, true);
+    if (body) x.setRequestHeader('Content-Type', 'application/json');
+    x.setRequestHeader('Accept', 'application/json');
+    x.timeout = 15000;
+    x.onreadystatechange = function () {
+      if (x.readyState !== 4 || finished) return;
+      finished = true;
+      var out = null;
+      try { out = JSON.parse(x.responseText); } catch (e) {}
+      done(x.status, out);
+    };
+    x.ontimeout = function () { if (!finished) { finished = true; done(0, null); } };
+    x.send(body ? JSON.stringify(body) : null);
+  }
+
+  function dexWhy(status, body) {
+    var code = body && body.Code ? body.Code : '';
+    if (!status) return 'Can’t reach Dexcom';
+    if (code === 'AccountPasswordInvalid') return 'Wrong username or password';
+    if (/NotFound/.test(code)) return 'Account not found — check region';
+    if (/MaxAttempts/.test(code)) return 'Too many tries — wait 10 min';
+    if (/Session/.test(code)) return 'Session expired';
+    return 'Dexcom error ' + (code || status);
+  }
+
+  function dexLogin(c, done) {
+    var r = DEX[c.region] || DEX.ous;
+    request('POST', r.base + 'General/AuthenticatePublisherAccount', {accountName: c.user, password: c.pass, applicationId: r.app}, function (st, acc) {
+      if (st !== 200 || typeof acc !== 'string' || acc === NONE) { done(null, dexWhy(st, acc)); return; }
+      request('POST', r.base + 'General/LoginPublisherAccountById', {accountId: acc, password: c.pass, applicationId: r.app}, function (st2, sid) {
+        if (st2 !== 200 || typeof sid !== 'string' || sid === NONE) { done(null, dexWhy(st2, sid)); return; }
+        done(sid, '');
+      });
+    });
+  }
+
+  function readDexcom(c, attempt, done) {
+    if (!glu.session) {
+      dexLogin(c, function (sid, why) {
+        if (!sid) { done({error: why}); return; }
+        glu.session = sid;
+        readDexcom(c, attempt + 1, done);
+      });
+      return;
+    }
+    var r = DEX[c.region] || DEX.ous;
+    request('POST', r.base + 'Publisher/ReadPublisherLatestGlucoseValues?sessionId=' + encodeURIComponent(glu.session) + '&minutes=60&maxCount=1', {}, function (st, list) {
+      if (st !== 200) {
+        glu.session = null;   // the session ran out: sign in again, at most twice
+        if (attempt < 2) readDexcom(c, attempt + 1, done); else done({error: 'Dexcom isn’t answering'});
+        return;
+      }
+      if (!list || !list.length) { done({error: 'No reading — is Share on?'}); return; }
+      var g = list[0], m = /\((\d+)/.exec(g.WT || g.ST || g.DT || '');
+      done({mgdl: +g.Value, trend: typeof g.Trend === 'number' ? TREND_N[g.Trend] : g.Trend, at: m ? +m[1] : Date.now()});
+    });
+  }
+
+  function nsBase(url) {
+    url = String(url || '').trim().replace(/\/+$/, '');
+    if (url && !/^https?:\/\//i.test(url)) url = 'https://' + url;
+    return url;
+  }
+  function readNightscout(c, done) {
+    var u = nsBase(c.url) + '/api/v1/entries/sgv.json?count=1' + (c.token ? '&token=' + encodeURIComponent(c.token) : '');
+    request('GET', u, null, function (st, list) {
+      if (!st) { done({error: 'Can’t reach your Nightscout'}); return; }
+      if (st === 401 || st === 403) { done({error: 'Nightscout wants a token'}); return; }
+      if (st !== 200 || !list) { done({error: 'Nightscout error ' + st}); return; }
+      if (!list.length || !list[0].sgv) { done({error: 'No reading yet'}); return; }
+      done({mgdl: +list[0].sgv, trend: list[0].direction, at: +list[0].date || Date.now()});
+    });
+  }
+
+  function readGlucose() {
+    var c = gconf();
+    if (!c || glu.preview) return;
+    var got = function (r) { if (!r.error) glu.last = r; showGlucose(r.error && glu.last && Date.now() - glu.last.at < 20 * 60000 ? glu.last : r); };
+    if (c.src === 'ns') readNightscout(c, got); else readDexcom(c, 0, got);
+  }
+
+  function showGlucose(r) {
+    var el = $('glucose'), c = gconf();
+    if (!c) { el.hidden = true; return; }
+    el.hidden = false;
+    var mmol = c.unit !== 'mgdl';
+    $('gunit').textContent = mmol ? 'mmol/L' : 'mg/dL';
+    if (!r || r.error) {
+      $('gval').textContent = '—'; $('garrow').textContent = '';
+      $('gmeta').textContent = r && r.error ? r.error : 'Connecting…';
+      el.className = 'err';
+      return;
+    }
+    var mins = Math.max(0, Math.round((Date.now() - r.at) / 60000));
+    $('gval').textContent = mmol ? (r.mgdl / 18.016).toFixed(1) : String(Math.round(r.mgdl));
+    $('garrow').textContent = ARROWS[r.trend] || '';
+    $('gmeta').textContent = mins < 1 ? 'just now' : mins < 60 ? mins + ' min ago' : 'over an hour ago';
+    var lo = r.mgdl < (c.low || 70), hi = r.mgdl > (c.high || 180);
+    el.className = (lo ? 'low' : hi ? 'high' : 'inrange') + (mins > 15 ? ' stale' : '');
+    el.setAttribute('aria-label', 'Glucose ' + $('gval').textContent + ' ' + $('gunit').textContent + ', ' + $('gmeta').textContent);
+  }
+
+  function startGlucose() {
+    clearInterval(glu.timer);
+    glu.session = null; glu.last = null;
+    if (query.glucose) {   // ?glucose=112&trend=Flat: a preview with made-up numbers, for screenshots
+      glu.preview = true;
+      if (!gconf()) store('glucose', {src: 'dex', user: 'preview', pass: '', region: 'ous', unit: cfg.units === 'F' ? 'mgdl' : 'mmol', preview: true});
+      showGlucose({mgdl: +query.glucose, trend: query.trend || 'Flat', at: Date.now() - 2 * 60000});
+      return;
+    }
+    if (!gconf()) { showGlucose(null); return; }
+    showGlucose({error: 'Connecting…'});
+    readGlucose();
+    glu.timer = setInterval(readGlucose, 5 * 60000);
+  }
+
+  /** The glucose form, drawn into `box`. `st` holds what's typed; returns nothing, read st after. */
+  function drawGlucoseForm(box, st) {
+    function sync() {
+      var q = function (n) { var i = box.querySelector('[name=' + n + ']'); return i ? i.value : null; };
+      ['user', 'pass', 'url', 'token'].forEach(function (n) { var v = q('g' + n); if (v !== null) st[n] = v; });
+    }
+    function draw() {
+      var src = st.src || 'off', h = '<div class="gform">';
+      h += '<div class="group"><span class="label">Show my glucose from</span><div class="opts wrap">' +
+        opt('gsrc', 'off', src === 'off', 'Don’t show it') + opt('gsrc', 'dex', src === 'dex', 'Dexcom') +
+        opt('gsrc', 'libre', src === 'libre', 'FreeStyle Libre') + opt('gsrc', 'ns', src === 'ns', 'Nightscout') + '</div></div>';
+      if (src === 'dex') {
+        h += '<label class="field"><span>Dexcom username, email or phone</span><input name="guser" type="text" autocomplete="username" spellcheck="false" value="' + esc(st.user || '') + '"></label>' +
+          '<label class="field"><span>Dexcom password</span><input name="gpass" type="password" autocomplete="current-password" value="' + esc(st.pass || '') + '"></label>' +
+          '<div class="group"><span class="label">Account region</span><div class="opts wrap">' +
+          opt('gregion', 'ous', st.region !== 'us' && st.region !== 'jp', DEX.ous.label) + opt('gregion', 'us', st.region === 'us', DEX.us.label) + opt('gregion', 'jp', st.region === 'jp', DEX.jp.label) + '</div></div>' +
+          '<p class="note">Turn on <b>Share</b> in the Dexcom app and invite at least one follower; Nexus reads that same feed. Use the account that wears the sensor.</p>';
+      } else if (src === 'ns') {
+        h += '<label class="field"><span>Your Nightscout address</span><input name="gurl" type="text" inputmode="url" spellcheck="false" placeholder="yourname.herokuapp.com" value="' + esc(st.url || '') + '"></label>' +
+          '<label class="field"><span>Access token (if your site is locked)</span><input name="gtoken" type="text" spellcheck="false" placeholder="readable-1234abcd…" value="' + esc(st.token || '') + '"></label>' +
+          '<p class="note">Make a read-only token in Nightscout: Admin tools → Subjects → add one with the <b>readable</b> role.</p>';
+      } else if (src === 'libre') {
+        h += '<p class="note big">Abbott’s LibreLinkUp doesn’t let web pages read it, so Libre comes in through <b>Nightscout</b>: a free site that bridges LibreLinkUp (or Juggluco, xDrip+) to anything. Set one up, then pick Nightscout here.</p>' +
+          '<div class="opts">' + opt('gsrc', 'ns', false, 'Use Nightscout') + '</div>';
+      }
+      if (src === 'dex' || src === 'ns') {
+        h += '<div class="group"><span class="label">Units</span><div class="opts">' +
+          opt('gunit', 'mmol', st.unit !== 'mgdl', 'mmol/L') + opt('gunit', 'mgdl', st.unit === 'mgdl', 'mg/dL') + '</div></div>' +
+          '<p class="note">Kept only in this browser and sent only to ' + (src === 'dex' ? 'Dexcom' : 'your Nightscout') + '. Never in a backup. A glance, not a medical device: check your CGM app before you treat.</p>';
+      }
+      box.innerHTML = h + '</div>';
+    }
+    box.onclick = function (e) {
+      var b = e.target.closest('button.opt');
+      if (!b) return;
+      sync();
+      var n = b.getAttribute('data-name'), v = b.getAttribute('data-value');
+      if (n === 'gsrc') st.src = v; else if (n === 'gregion') st.region = v; else if (n === 'gunit') st.unit = v;
+      draw();
+      var f = box.querySelector('input'); if (f && n === 'gsrc') f.focus();
+    };
+    st.sync = sync;
+    draw();
+  }
+  function glucoseDraft() {
+    var c = gconf();
+    return c && !c.preview ? {src: c.src, user: c.user, pass: c.pass, region: c.region, unit: c.unit, url: c.url, token: c.token}
+      : {src: 'off', region: 'ous', unit: cfg.units === 'F' ? 'mgdl' : 'mmol'};
+  }
+  /** Check what was typed and keep it. Returns an error to show, or '' when saved. */
+  function saveGlucose(st) {
+    st.sync();
+    if (st.src === 'dex') {
+      if (!String(st.user || '').trim() || !st.pass) return 'Enter your Dexcom username and password';
+      store('glucose', {src: 'dex', user: st.user.trim(), pass: st.pass, region: st.region || 'ous', unit: st.unit || 'mmol'});
+    } else if (st.src === 'ns') {
+      if (!/^https?:\/\/[^\s/]+\.[^\s/]+/.test(nsBase(st.url))) return 'Enter your Nightscout address';
+      store('glucose', {src: 'ns', url: nsBase(st.url), token: String(st.token || '').trim(), unit: st.unit || 'mmol'});
+    } else if (st.src === 'libre') {
+      return 'Libre comes in through Nightscout — pick Nightscout';
+    } else {
+      try { localStorage.removeItem('nexus.glucose'); } catch (e) {}
+    }
+    glu.preview = false;
+    startGlucose();
+    return '';
+  }
+
+  var gst = null;
+  function openGlucose() {
+    gst = glucoseDraft();
+    drawGlucoseForm($('gbody'), gst);
+    $('gremove').hidden = !gconf();
+    showSheet('gsheet');
+    $('gsave').focus({preventScroll: true});
+  }
+  $('gsave').addEventListener('click', function () {
+    var err = saveGlucose(gst);
+    if (err) { toast(err); return; }
+    closeSheet(); $('gbody').innerHTML = '';
+    toast(gconf() ? 'Glucose on — reading now' : 'Glucose hidden');
+  });
+  $('gremove').addEventListener('click', function () {
+    try { localStorage.removeItem('nexus.glucose'); } catch (e) {}
+    startGlucose(); closeSheet(); $('gbody').innerHTML = ''; toast('Glucose removed from this browser');
+  });
+  $('gcancel').addEventListener('click', function () { closeSheet(); $('gbody').innerHTML = ''; });
+  $('glucose').addEventListener('click', openGlucose);
+
   // MARK: - The setup: a few questions on the first visit, and from Settings any time
 
   var draft = null, stepIdx = 0, setupOpen = false;
@@ -664,6 +893,16 @@
       if (n === 'engine') draft.engine = v; else if (n === 'motion') draft.motion = v === '1';
       drawStep();
     }},
+    { title: 'Your glucose (optional)', render: function () {
+      if (!draft.glu) draft.glu = glucoseDraft();
+      return '<p class="lead small">Wear a CGM? Nexus can show your latest reading in a small card under the clocks. Skip this if it’s not for you.</p><div id="gstep"></div>';
+    }, wire: function () { drawGlucoseForm($('gstep'), draft.glu); },
+    collect: function () {
+      var g = draft.glu; delete draft.glu;
+      if (!g) return;
+      var err = saveGlucose(g);
+      if (err && g.src !== 'libre') toast(err + ' — you can add it later in Settings');
+    }},
     { title: 'All set', render: function () {
       return '<p class="lead">Make Nexus open with every new window or tab:</p><ul class="points">' +
         '<li><b>Chrome, Edge, Brave:</b> Settings → On start-up → Open a specific page → paste this page’s address. For new tabs, add Nexus as an extension (see the README on GitHub).</li>' +
@@ -724,6 +963,7 @@
     $('next').focus();
   }
   function finishSetup() {
+    delete draft.glu;
     var placeChanged = JSON.stringify(cfg.place) !== JSON.stringify(draft.place) || cfg.units !== draft.units;
     cfg = draft; save();
     firstRun = false;
@@ -754,7 +994,8 @@
       return;
     }
     if (openSheet) {
-      if (k === 'Escape') { e.preventDefault(); closeSheet(); return; }
+      if (k === 'Escape') { e.preventDefault(); closeSheet(); if (openSheet === null) $('gbody').innerHTML = ''; return; }
+      if (openSheet === 'gsheet' && k === 'Enter' && typing) { e.preventDefault(); $('gsave').click(); return; }
       if (openSheet === 'suite' && a && a.classList.contains('tile') && /^Arrow/.test(k)) { e.preventDefault(); pointerLive = false; arrows(suiteRows, a, k); }
       return;
     }
@@ -795,6 +1036,8 @@
   Sky.start($('sky'));
   render(false);
   refreshWeather();
+  startGlucose();
+  setInterval(function () { if (glu.last && !glu.preview) showGlucose(glu.last); }, 60000);
   setInterval(tick, 1000);
   setInterval(function () { refreshWeather(); greeting(); }, 20 * 60000);
   if (firstRun) openSetup(0);
@@ -804,5 +1047,6 @@
     lastMinute = -1; tick(); greeting();
     var w = stored('weather');
     if (!w || Date.now() - w.at > 15 * 60000) refreshWeather();
+    if (gconf() && !glu.preview && (!glu.last || Date.now() - glu.last.at > 5 * 60000)) readGlucose();
   });
 })();

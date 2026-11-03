@@ -37,7 +37,17 @@
     <div class="loc"><svg viewBox="0 0 24 24" class="pin"><path d="M12 2.5a7 7 0 0 0-7 7c0 5.2 7 12 7 12s7-6.8 7-12a7 7 0 0 0-7-7zm0 9.6a2.6 2.6 0 1 1 0-5.2 2.6 2.6 0 0 1 0 5.2z"/></svg><span id="place">—</span></div>
   </section>
 
-  <section id="clocks" aria-label="World clocks"></section>
+  <section id="right">
+    <div id="clocks" aria-label="World clocks"></div>
+    <!-- Optional: your glucose, from Dexcom Share or Nightscout. Hidden until you turn it on in Settings. -->
+    <button type="button" id="glucose" aria-label="Glucose reading" hidden>
+      <span class="gcap">Glucose</span>
+      <span class="gval" id="gval">—</span>
+      <span class="garrow" id="garrow"></span>
+      <span class="gunit" id="gunit"></span>
+      <span class="gmeta" id="gmeta"></span>
+    </button>
+  </section>
 
   <button id="me" type="button" aria-label="Settings"><span id="mono"></span></button>
 </header>
@@ -71,12 +81,27 @@
     <p>Everything is kept in this browser only. Back it up to move it to another browser.</p>
     <div class="list">
       <button type="button" data-act="setup">Change my setup</button>
+      <button type="button" data-act="glucose">Glucose reading (optional)</button>
       <button type="button" data-act="export">Back up my setup (.json)</button>
       <button type="button" data-act="import">Restore from a backup</button>
       <button type="button" data-act="usage">Clear “Most used”</button>
       <button type="button" data-act="reset" class="danger">Start again from scratch</button>
     </div>
     <input type="file" id="importFile" accept="application/json,.json" hidden>
+  </div>
+</div>
+
+<!-- Glucose: where to read it from. -->
+<div id="gsheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="gTitle">
+  <div class="panel small">
+    <h2 id="gTitle">Glucose reading</h2>
+    <div id="gbody"></div>
+    <div class="gbtns">
+      <button type="button" id="gsave" class="primary">Save</button>
+      <button type="button" id="gremove" class="danger">Remove</button>
+      <span class="spacer"></span>
+      <button type="button" id="gcancel">Cancel</button>
+    </div>
   </div>
 </div>
 
