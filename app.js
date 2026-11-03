@@ -600,7 +600,7 @@
   var NONE = '00000000-0000-0000-0000-000000000000';
   var glu = {session: null, timer: null, last: null, preview: false};
 
-  function gconf() { return stored('glucose'); }
+  function gconf() { return glu.preview ? glu.pconf : stored('glucose'); }
 
   function request(method, url, body, done) {
     var x = new XMLHttpRequest(), finished = false;
@@ -709,9 +709,10 @@
   function startGlucose() {
     clearInterval(glu.timer);
     glu.session = null; glu.last = null;
-    if (query.glucose) {   // ?glucose=112&trend=Flat: a preview with made-up numbers, for screenshots
+    if (query.glucose && !glu.saved) {   // ?glucose=112&trend=Flat: a preview with made-up numbers, for screenshots
+      var real = stored('glucose');   // nothing is saved: the preview lasts as long as the page
+      glu.pconf = {src: 'dex', unit: query.unit || (real && real.unit) || (cfg.units === 'F' ? 'mgdl' : 'mmol'), preview: true};
       glu.preview = true;
-      if (!gconf()) store('glucose', {src: 'dex', user: 'preview', pass: '', region: 'ous', unit: cfg.units === 'F' ? 'mgdl' : 'mmol', preview: true});
       showGlucose({mgdl: +query.glucose, trend: query.trend || 'Flat', at: Date.now() - 2 * 60000});
       return;
     }
@@ -784,7 +785,7 @@
     } else {
       try { localStorage.removeItem('nexus.glucose'); } catch (e) {}
     }
-    glu.preview = false;
+    glu.preview = false; glu.saved = true;
     startGlucose();
     return '';
   }
@@ -793,7 +794,7 @@
   function openGlucose() {
     gst = glucoseDraft();
     drawGlucoseForm($('gbody'), gst);
-    $('gremove').hidden = !gconf();
+    $('gremove').hidden = !stored('glucose');
     showSheet('gsheet');
     $('gsave').focus({preventScroll: true});
   }
@@ -805,6 +806,7 @@
   });
   $('gremove').addEventListener('click', function () {
     try { localStorage.removeItem('nexus.glucose'); } catch (e) {}
+    glu.preview = false; glu.saved = true;
     startGlucose(); closeSheet(); $('gbody').innerHTML = ''; toast('Glucose removed from this browser');
   });
   $('gcancel').addEventListener('click', function () { closeSheet(); $('gbody').innerHTML = ''; });
