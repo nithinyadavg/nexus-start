@@ -803,6 +803,7 @@
     if (err) { toast(err); return; }
     closeSheet(); $('gbody').innerHTML = '';
     toast(gconf() ? 'Glucose on — reading now' : 'Glucose hidden');
+    if (gconf()) window.scrollTo({top: 0, behavior: 'smooth'});
   });
   $('gremove').addEventListener('click', function () {
     try { localStorage.removeItem('nexus.glucose'); } catch (e) {}

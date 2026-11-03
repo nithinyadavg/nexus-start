@@ -218,7 +218,10 @@ kbd { font: 600 1.2rem/1 'Inter', sans-serif; padding: 0.3rem 0.6rem; border-rad
 .gform input { width: 100%; height: 6.4rem; padding: 0 2.2rem; border-radius: 1.8rem; border: 0; outline: 0; font: 500 2.4rem 'Inter', sans-serif; color: #fff;
   background: rgba(255,255,255,0.08); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); }
 .gform input:focus { background: rgba(255,255,255,0.13); box-shadow: inset 0 0 0 2px rgba(243,221,176,0.55); }
-#gsheet .panel.small { width: min(92vw, 72rem); }
+#gsheet .panel.small { width: min(92vw, 84rem); max-height: 94vh; padding: 3.6rem 4.4rem; }
+#gsheet .panel h2 { margin-bottom: 2rem; }
+.gform .field { margin-bottom: 2rem; }
+.gform .group { margin-bottom: 2.2rem; }
 .gbtns { display: flex; align-items: center; gap: 1.2rem; margin-top: 1rem; }
 .gbtns .spacer { flex: 1; }
 .gbtns button { padding: 1.5rem 3rem; border-radius: 2.2rem; border: 0; cursor: pointer; font: 600 2rem 'Inter', sans-serif; color: rgba(245,245,247,0.85); background: rgba(255,255,255,0.08); }

@@ -6,6 +6,30 @@ touch, keyboard, or full-screen TV mode.
 
 **Try it:** https://nithinyadavg.github.io/nexus-start/
 
+![Nexus on a 1080p screen: date, live weather, flip clocks for Bangalore and London, the glucose card and glass tiles](screenshots/home.jpg)
+
+## Watch it in action
+
+<!-- Drop the screen recording here: edit this file on GitHub (pencil icon) and drag the .mp4/.mov onto this line. -->
+*Screen recording coming soon.*
+
+## A closer look
+
+| | |
+|---|---|
+| ![Night rain, with the Claude tile lighting the sky](screenshots/night-rain.jpg) | ![Snow, and the sky taking on the focused tile's colour](screenshots/snow.jpg) |
+| **The sky is the weather outside.** Rain at night, with the tile you're on lighting it. | **Snow, fog, storms, sunrise and sunset**, all drawn live and kept light on battery. |
+| ![The Google suite: twelve apps in one tile](screenshots/suite.jpg) | ![The optional glucose card setup: Dexcom, FreeStyle Libre or Nightscout](screenshots/glucose-setup.jpg) |
+| **Suites in one tile.** Google, Microsoft 365 and iCloud open their whole app family. | **Your glucose, if you want it.** Dexcom Share or Nightscout, read straight from your browser. |
+| ![First visit: the welcome screen](screenshots/setup-welcome.jpg) | ![First visit: picking the sites you use](screenshots/setup-sites.jpg) |
+| **A one-minute setup** on the first visit. No account. | **Pick the sites you use** from 69 of the most visited, grouped by what they're for. |
+
+<p align="center"><img src="screenshots/ipad.jpg" width="380" alt="Nexus on an iPad in portrait"><br><em>On an iPad in portrait.</em></p>
+
+*The glucose numbers in these pictures are made up (the page's `?glucose=112` preview).*
+
+## What it does
+
 - **No account, no sign-in, no tracking.** A one-minute setup asks your name, your city, your clocks and the sites
   you use; the answers stay in your browser. The only thing that leaves it is the weather lookup.
 - **Suites in one tile.** Google, Microsoft 365 and iCloud each open a panel with all their apps, like the app grid
@@ -15,6 +39,14 @@ touch, keyboard, or full-screen TV mode.
 - **Search like a launcher.** Start typing anywhere. `Tab` switches engine (Google, DuckDuckGo, Bing, Brave, Ecosia,
   Startpage). `!yt`, `!gh`, `!w`, `!m`, `!r`, `!c`, `!g` search YouTube, GitHub, Wikipedia, Maps, Reddit, Claude or
   ChatGPT instead. A web address goes straight there.
+- **Your glucose, optional.** A small upright card under the clocks shows your latest CGM reading, its trend arrow
+  and how old it is: gold when high, red when low. Turn it on in the setup or **Settings → Glucose reading**.
+  [Dexcom](https://www.dexcom.com) works directly through Dexcom Share. **FreeStyle Libre** comes in through
+  [Nightscout](https://nightscout.github.io), because Abbott's LibreLinkUp servers refuse requests from web pages;
+  Nightscout also covers Medtronic, Eversense and anything xDrip+ or Juggluco can read. The sign-in stays in your
+  browser, goes only to Dexcom or your own Nightscout, and is never put in a backup. It's a glance, not a medical
+  device: check your CGM app before you treat. To show it without real numbers (for a demo), add
+  `?glucose=112&trend=FortyFiveUp` to the address.
 - **Back up and move.** Settings → *Back up my setup* saves a small `.json` you can restore in any browser.
 
 | Keys | |
@@ -63,7 +95,9 @@ your own mark.
   Logos that vanish on dark glass are drawn in white.
 - **Privacy by construction.** No analytics, no cookies, no server. Location comes from your connection
   ([GeoJS](https://www.geojs.io)) or a city you pick ([Open-Meteo geocoding](https://open-meteo.com/en/docs/geocoding-api));
-  weather from [Open-Meteo](https://open-meteo.com).
+  weather from [Open-Meteo](https://open-meteo.com). The optional glucose card talks only to Dexcom Share (the feed
+  the Dexcom Follow app uses, as documented by [pydexcom](https://github.com/gagebenne/pydexcom)) or to your own
+  Nightscout's `/api/v1/entries` with a read-only token.
 
 ## Credits
 
