@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Nexus start page",
+  "short_name": "Nexus",
+  "version": "1.0.0",
+  "description": "Your new tab: a live weather sky, world clocks, search and your sites in glass tiles. Everything stays in your browser.",
+  "chrome_url_overrides": { "newtab": "index.html" },
+  "icons": { "128": "icon128.png" },
+  "homepage_url": "https://github.com/nithinyadavg/nexus-start"
+}

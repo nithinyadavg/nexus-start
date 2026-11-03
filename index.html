@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05070C">
+<meta name="description" content="Nexus: a start page with a live weather sky, world clocks and your sites in glass tiles. Set it up in a minute; nothing leaves your browser.">
+<title>Nexus</title>
+<link rel="icon" href="icon128.png">
+<link rel="apple-touch-icon" href="icon128.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200..700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="sky" width="960" height="540" aria-hidden="true"></canvas>
+<div id="shade" aria-hidden="true"></div>
+
+<header id="top">
+  <section id="date" aria-label="Date">
+    <div class="greet" id="greet"></div>
+    <div class="month"><span id="month"></span> <span id="year"></span></div>
+    <div class="dow" id="dow"></div>
+    <div class="day" id="day"></div>
+  </section>
+
+  <section id="weather" aria-label="Weather">
+    <div id="wicon" class="wicon"></div>
+    <div class="wrow">
+      <div class="temp" id="temp">--°</div>
+      <div class="wtext">
+        <div class="cond" id="cond">Looking outside…</div>
+        <div class="hint" id="hint"></div>
+      </div>
+    </div>
+    <div class="loc"><svg viewBox="0 0 24 24" class="pin"><path d="M12 2.5a7 7 0 0 0-7 7c0 5.2 7 12 7 12s7-6.8 7-12a7 7 0 0 0-7-7zm0 9.6a2.6 2.6 0 1 1 0-5.2 2.6 2.6 0 0 1 0 5.2z"/></svg><span id="place">—</span></div>
+  </section>
+
+  <section id="clocks" aria-label="World clocks"></section>
+
+  <button id="me" type="button" aria-label="Settings"><span id="mono"></span></button>
+</header>
+
+<form id="search" role="search" autocomplete="off">
+  <button type="button" id="engine" aria-label="Search engine"></button>
+  <input id="q" type="search" placeholder="Search" aria-label="Search" spellcheck="false">
+  <kbd id="slash">/</kbd>
+</form>
+
+<main id="rows"></main>
+
+<footer id="foot">
+  <span class="keys"><kbd>/</kbd> search · <kbd>Tab</kbd> engine · <kbd>←↑→↓</kbd> move · <kbd>↵</kbd> open · <kbd>⇧F</kbd> TV mode · type anywhere to search</span>
+  <span class="acts">
+    <button type="button" id="settings">Settings</button>
+    <button type="button" id="tv">TV mode</button>
+  </span>
+  <span class="credit">Nexus · made by <a href="https://nithinyadavg.me">nithinyadavg</a> · <a id="forklink" href="https://github.com/nithinyadavg/nexus-start">fork it on GitHub</a></span>
+</footer>
+
+<!-- A suite (Google, Microsoft 365, iCloud) opens here. -->
+<div id="suite" class="sheet" role="dialog" aria-modal="true" aria-labelledby="suiteTitle">
+  <div class="panel"><h2 id="suiteTitle"></h2><div class="grid" id="suiteGrid"></div></div>
+</div>
+
+<!-- Settings: change the setup, back up, restore, reset. -->
+<div id="menu" class="sheet" role="dialog" aria-modal="true" aria-labelledby="menuTitle">
+  <div class="panel small">
+    <h2 id="menuTitle">Settings</h2>
+    <p>Everything is kept in this browser only. Back it up to move it to another browser.</p>
+    <div class="list">
+      <button type="button" data-act="setup">Change my setup</button>
+      <button type="button" data-act="export">Back up my setup (.json)</button>
+      <button type="button" data-act="import">Restore from a backup</button>
+      <button type="button" data-act="usage">Clear “Most used”</button>
+      <button type="button" data-act="reset" class="danger">Start again from scratch</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json,.json" hidden>
+  </div>
+</div>
+
+<!-- First run: the setup. -->
+<div id="setup" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
+  <div class="card">
+    <div class="dots" id="dots"></div>
+    <div id="step"></div>
+    <div class="nav">
+      <button type="button" id="back" class="ghost">Back</button>
+      <span class="spacer"></span>
+      <button type="button" id="skip" class="ghost">Use the defaults</button>
+      <button type="button" id="next" class="primary">Next</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" role="status"></div>
+
+<script src="catalog.js"></script>
+<script src="icons.js"></script>
+<script src="sky.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
