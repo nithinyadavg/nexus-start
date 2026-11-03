@@ -304,7 +304,7 @@
     for (var i = 287; i >= 0; i--) {
       var k = i / 12;   // hours back
       var w = Math.min(1, k / 1.2);   // the last hour follows the trend; before that, a day's ups and downs
-      var v = now - slope * 6 * Math.min(i, 8) + w * (34 * Math.sin(k / 1.15 - 1.2) + 40 * Math.sin(k / 3.9 + 0.6) + 8 * Math.sin(k * 2.3));
+      var v = now - slope * 6 * Math.min(i, 8) * Math.max(0, 1 - i / 24) + w * (14 + 24 * Math.sin(k / 1.15 - 1.2) + 30 * Math.sin(k / 3.9 + 0.6) + 6 * Math.sin(k * 2.3));
       hist.push({mgdl: Math.max(45, Math.round(v)), at: t - i * 300000, trend: i ? 'Flat' : trend});
     }
     hist[hist.length - 1].mgdl = now;
