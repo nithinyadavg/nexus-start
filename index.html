@@ -39,14 +39,8 @@
 
   <section id="right">
     <div id="clocks" aria-label="World clocks"></div>
-    <!-- Optional: your glucose, from Dexcom Share or Nightscout. Hidden until you turn it on in Settings. -->
-    <button type="button" id="glucose" aria-label="Glucose reading" hidden>
-      <span class="gcap">Glucose</span>
-      <span class="gval" id="gval">—</span>
-      <span class="garrow" id="garrow"></span>
-      <span class="gunit" id="gunit"></span>
-      <span class="gmeta" id="gmeta"></span>
-    </button>
+    <!-- Optional: your glucose and how it has been flowing (glucose.js). Hidden until you turn it on. -->
+    <div id="glucose" role="group" aria-label="Glucose" hidden></div>
   </section>
 
   <button id="me" type="button" aria-label="Settings"><span id="mono"></span></button>
@@ -124,6 +118,7 @@
 <script src="catalog.js"></script>
 <script src="icons.js"></script>
 <script src="sky.js"></script>
+<script src="glucose.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

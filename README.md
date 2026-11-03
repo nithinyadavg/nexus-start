@@ -39,8 +39,9 @@ touch, keyboard, or full-screen TV mode.
 - **Search like a launcher.** Start typing anywhere. `Tab` switches engine (Google, DuckDuckGo, Bing, Brave, Ecosia,
   Startpage). `!yt`, `!gh`, `!w`, `!m`, `!r`, `!c`, `!g` search YouTube, GitHub, Wikipedia, Maps, Reddit, Claude or
   ChatGPT instead. A web address goes straight there.
-- **Your glucose, optional.** A small upright card under the clocks shows your latest CGM reading, its trend arrow
-  and how old it is: gold when high, red when low. Turn it on in the setup or **Settings → Glucose reading**.
+- **Your glucose, optional.** A glass card under the clocks shows your latest CGM reading, its trend arrow and how
+  old it is, and beside it how it has been flowing: a smooth line over the last 3, 6, 12 or 24 hours on the in-range
+  band, gold above it and red below. Turn it on in the setup or **Settings → Glucose reading**.
   [Dexcom](https://www.dexcom.com) works directly through Dexcom Share. **FreeStyle Libre** comes in through
   [Nightscout](https://nightscout.github.io), because Abbott's LibreLinkUp servers refuse requests from web pages;
   Nightscout also covers Medtronic, Eversense and anything xDrip+ or Juggluco can read. The sign-in stays in your
